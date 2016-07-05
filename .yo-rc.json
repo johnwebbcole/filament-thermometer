@@ -1,0 +1,7 @@
+{
+  "generator-jscad": {
+    "name": "temperature-test",
+    "description": "Temperature test blocks",
+    "author": "John Cole"
+  }
+}

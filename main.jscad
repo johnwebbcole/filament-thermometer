@@ -10,10 +10,20 @@
 
 function getParameterDefinitions() {
     return [{
+        name: 'label',
+        type: 'text',
+        caption: 'Label:',
+        initial: 'eSUN PLA+'
+    }, {
+        name: 'segments',
+        type: 'number',
+        caption: 'Segments:',
+        initial: 4
+    }, {
         name: 'starttemp',
         type: 'number',
         caption: 'Start Temperature:',
-        initial: '235'
+        initial: '225'
     }];
 }
 
@@ -23,41 +33,65 @@ function main(params) {
     Colors.init(CSG);
     echo('params', JSON.stringify(params));
 
+    // var height = params.segments * 10;
+    var height = 5;
 
-    var cube = Parts.Cube([10, 10, 50]);
+    var cube = Parts.Cube([20, 20, 5]);
 
-    var core = cube.union(Parts.Cylinder(10, 50).align(cube, 'xyz').snap(cube, 'x', 'center+').color('gray'));
+    var lip = Parts.Cube([20, 1, 1])
+        .snap(cube, 'z', 'inside+')
+        .snap(cube, 'y', 'outside+')
+        .align(cube, 'x');
 
-    var stripes = [];
 
-    var stripe = Parts.Cube([1, 10, 1]).color('blue');
+    var cylinder = Parts.Cylinder(20, 5).align(cube, 'xz').snap(cube, 'y', 'center-').color('blue');
 
-    _.range(10, 50, 10).forEach(function (height) {
-        stripes.push(stripe.snap(core, 'x', 'outside-').translate([0, 0, height]));
-    });
+    var cut = Parts.Cube([5, 2.5, 2.5])
+        // .snap(cube, 'z', 'inside+')
+        .snap(cylinder, 'y', 'outside-')
+        .align(cylinder, 'xz')
+        .translate([0, -2, 0])
+        .color('red');
 
-    var labels = [];
+    var core = cube.union(cylinder);
 
-    _.range(params.starttemp, params.starttemp - 5, -1).forEach(function (temp, i) {
-        labels.push(util.label('' + temp, 0, 0, 3, 0.5)
-            .fit(8, 8, 0, true)
+    var cores = [];
+
+    var temp = params.starttemp;
+
+    _.range(0, height * params.segments, height).forEach(function (pos) {
+        var label = util.label('' + temp, 0, 0, 4, 0.5)
+            .fit(5, 5, 0, true)
             .rotateX(90)
-            .rotateZ(90)
-            .snap(core, 'x', 'outside-')
-            .snap(core, 'z', 'inside-')
-            .align(core, 'y')
-            .translate([0, 0, 4 + (i * 10)])
-            .color('green'));
+            .align(core, 'zx')
+            .snap(core, 'y', 'outside+')
+            .color('green');
+
+        temp--;
+
+        cores.push(core.subtract(cut).union([lip, label]).subtract(core.enlarge([-1, -1, 0])).translate([0, 0, pos]));
+
     });
 
+    var base = Parts.Cube([30, 50, 5]).chamfer(2, 'z+').chamfer(0.5, 'z-').color('orange');
 
+    var baselabel = util.label(params.label, 0, 0, 4, 1)
+        .fit(20, 10, 0, true)
+        .align(base, 'x')
+        .snap(base, 'z', 'outside-')
+        .snap(base, 'y', 'inside-')
+        .translate([0, 4, 0]);
 
-    return union([
-        core
-        .subtract(core.enlarge([-2, -2, -1]).snap(core, 'z', 'inside+'))
-        .subtract(union(labels).rotateZ(-90).snap(core, 'y', 'inside-')),
-        union(stripes),
-        union(labels)
+    var c = union(cores).align(base, 'xy').snap(base, 'z', 'outside-');
 
-    ]);
+    return base.union(baselabel).union([c.fillet(-1, 'z-'), c.fillet(1, 'z-')]);
+
+    // .translate([0, 0, 5])
+    // .union(cyl)
+    // .subtract(Parts.Cylinder(10, height * params.segments + 5)
+    //     .enlarge([-1, -1, 0])
+    //     .align(cyl, 'xy')
+    //     .snap(cyl, 'z', 'inside-')
+    //     .translate([0, 0, 2]));
+
 }
